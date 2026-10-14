@@ -76,8 +76,22 @@ Every major choice, with the alternatives and tradeoffs, is written up in
 
 ## Run it
 
-Needs Java 21.
+Needs Java 21. Gradle downloads itself the first time.
 
 ```bash
-./gradlew test
+git clone https://github.com/dhilandonkey-png/safe-payouts
+cd safe-payouts
+./gradlew run     # a demo that walks through payouts, retries, conflicts and failures
+./gradlew test    # all tests
+```
+
+The demo prints each step with balances, for example:
+
+```
+> The network times out, so acme retries with the same key
+  got back po_1 (same payout, no second charge)
+  acme balance: $75.00   in flight: $25.00
+
+> A buggy client reuses "key_1" for $90.00
+  rejected: idempotency key key_1 was already used with a different request
 ```
