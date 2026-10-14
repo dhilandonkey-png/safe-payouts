@@ -1,5 +1,9 @@
 # safe-payouts
 
+[![test](https://github.com/dhilandonkey-png/safe-payouts/actions/workflows/test.yml/badge.svg)](https://github.com/dhilandonkey-png/safe-payouts/actions/workflows/test.yml)
+![Java 21](https://img.shields.io/badge/java-21-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
 A small payouts service in Java, built to learn how payment systems keep money
 correct. It's modeled on problems Stripe works on: a double-entry ledger, payouts
 that can't be sent twice, and fraud rules that hold suspicious payouts for review.
@@ -11,7 +15,9 @@ that can't be sent twice, and fraud rules that hold suspicious payouts for revie
 | 1 | Double-entry ledger | ✅ done |
 | 2 | Payouts with idempotency keys | ✅ done |
 | 3 | Fraud rules that hold risky payouts | ⏳ next |
-| 4 | HTTP API and CI | planned |
+| 4 | HTTP API | planned |
+
+Tests run on every push with GitHub Actions.
 
 ## Step 1: the ledger
 
