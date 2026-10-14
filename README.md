@@ -8,6 +8,8 @@ A small payouts service in Java, built to learn how payment systems keep money
 correct. It's modeled on problems Stripe works on: a double-entry ledger, payouts
 that can't be sent twice, and fraud rules that hold suspicious payouts for review.
 
+Built by [Dhilan Avula](https://dhilanavula.dev).
+
 ## Status
 
 | Step | What | Status |
