@@ -1,6 +1,7 @@
 package payouts.payout;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -18,6 +19,11 @@ public class InMemoryPayoutStore implements PayoutStore {
     public synchronized Optional<Payout> findByIdempotencyKey(String merchantId, String idempotencyKey) {
         String id = idByKey.get(scopedKey(merchantId, idempotencyKey));
         return id == null ? Optional.empty() : Optional.of(byId.get(id));
+    }
+
+    @Override
+    public synchronized List<Payout> findByMerchant(String merchantId) {
+        return byId.values().stream().filter(p -> p.request().merchantId().equals(merchantId)).toList();
     }
 
     @Override

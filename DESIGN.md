@@ -97,3 +97,35 @@ one at a time, even for unrelated merchants. That's fine at this scale. A real s
 would lock per merchant, or rely on the database: a unique constraint on
 `(merchant, idempotency key)` and a transaction around the balance check and the
 reservation, so it works across multiple servers too.
+
+## 7. Fraud rules hold payouts instead of only blocking them
+
+**Options:** every rule either allows or rejects a payout, or rules can also hold a
+payout for a person to review.
+
+**Chose:** three outcomes, `ALLOW`, `REVIEW` and `BLOCK`, and the strictest one wins.
+Only a bank account on the blocklist is blocked outright. The other rules (new bank
+account, too many payouts in an hour, daily limit) hold the payout for review.
+
+**Why:** those rules catch things that are *unusual*, not things that are *proven*
+fraud. A merchant who just changed banks, or had a busy day, would be hurt if their
+payout were simply refused. Holding it lets a person decide, and the reasons saved on
+the payout tell them what to check.
+
+**Details that matter:**
+- A held payout **reserves its money** like any other (Decision 5). Otherwise the
+  merchant could request a second payout with the same money while the first waits.
+- A **blocked payout is saved**, even though no money moves. A client retrying with
+  the same idempotency key gets the same blocked answer back, instead of running the
+  rules again on a history that may have changed.
+- Rules only read the request and the merchant's history; they never touch the
+  ledger. So adding a rule can't break the money logic, and each rule is tested alone.
+- **"New bank account" means never successfully paid**, not just never used. A payout
+  that is still pending or failed doesn't prove the account belongs to the merchant.
+
+**Tradeoffs I accepted:** the limits are fixed numbers passed in by hand. A real
+system would learn them per merchant from its history, and score payouts with a model
+instead of fixed rules. The rules also run inside the service's single lock, so
+reading the history and creating the payout can't race (Decision 6), but every rule
+scans the merchant's whole history; a database would index payouts by merchant and
+time instead.

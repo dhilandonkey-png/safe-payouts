@@ -16,8 +16,8 @@ Built by [Dhilan Avula](https://dhilanavula.dev).
 |---|---|---|
 | 1 | Double-entry ledger | ✅ done |
 | 2 | Payouts with idempotency keys | ✅ done |
-| 3 | Fraud rules that hold risky payouts | ⏳ next |
-| 4 | HTTP API | planned |
+| 3 | Fraud rules that hold risky payouts | ✅ done |
+| 4 | HTTP API | ⏳ next |
 
 Tests run on every push with GitHub Actions.
 
@@ -77,6 +77,52 @@ payouts.markPaid(p.id());
   against a $100 balance must produce exactly 10 payouts and never overdraw.
   Removing the lock makes 24 of these 40 runs fail, so the tests do catch the race.
 
+## Step 3: fraud rules
+
+Before any money is reserved, a **risk engine** runs a list of rules against the
+request and the merchant's past payouts. Each rule can let it through, **hold it for
+review**, or **block** it. The strictest answer wins, and every reason is saved on the
+payout so a reviewer can see why it was stopped.
+
+| Rule | Catches | Outcome |
+|---|---|---|
+| `BlockedDestinationRule` | a bank account already known to be fraudulent | block |
+| `NewDestinationRule` | a large first payout to a bank account never paid before (a typical account takeover) | review |
+| `VelocityRule` | a sudden burst of payouts in a short window | review |
+| `DailyLimitRule` | more money in 24 hours than the merchant's limit | review |
+
+```
+held:      reserved like any payout, but can't be sent yet
+approve:   IN_REVIEW ──► PENDING  (then paid or failed as usual)
+reject:    IN_REVIEW ──► BLOCKED  (reserved money goes back to the merchant)
+blocked:   saved as BLOCKED, no money moves
+```
+
+```java
+RiskEngine risk = new RiskEngine(List.of(
+        new BlockedDestinationRule(Set.of("bank_stolen")),
+        new NewDestinationRule(5_000),                       // first payout to a new account: max $50
+        new VelocityRule(5, Duration.ofHours(1))));          // max 5 payouts an hour
+PayoutService payouts = new PayoutService(ledger, store, ids, clock, risk);
+
+Payout p = payouts.createPayout("key_9", new PayoutRequest("acme", 6_000, "bank_new"));
+p.status();       // IN_REVIEW
+p.riskReasons();  // [new_destination: first payout to bank_new is 6000 cents, above the 5000 cent limit]
+payouts.reject(p.id());   // money back to acme
+```
+
+### How it's tested
+
+- Every rule has tests at and just past its limit, and for what it should ignore:
+  old payouts, blocked or failed payouts, and accounts that were already paid.
+- A held payout reserves the money, can't be marked paid until approved, and
+  returns the money if rejected.
+- A blocked payout moves no money, and retrying it with the same key returns the
+  same blocked payout instead of running the rules again.
+- The ledger still adds up to zero after a mix of approvals, rejections and blocks.
+- Breaking the code on purpose (ignoring review, forgetting to refund a rejection,
+  not saving blocked payouts) makes the tests fail.
+
 ## Design decisions
 
 Every major choice, with the alternatives and tradeoffs, is written up in
@@ -89,7 +135,7 @@ Needs Java 21. Gradle downloads itself the first time.
 ```bash
 git clone https://github.com/dhilandonkey-png/safe-payouts
 cd safe-payouts
-./gradlew run     # a demo that walks through payouts, retries, conflicts and failures
+./gradlew run     # a demo: payouts, retries, conflicts, failures and fraud holds
 ./gradlew test    # all tests
 ```
 
